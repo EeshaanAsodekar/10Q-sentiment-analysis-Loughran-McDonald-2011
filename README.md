@@ -29,11 +29,7 @@ The project processes S&P 500 constituent data and 10-K filings downloaded from 
 4. Visualize the results using the provided plotting functions to compare sentiment analysis results from different word lists.
 
 ## Dependencies
-- Python 3.x
-- `pandas` for data manipulation
-- `matplotlib` for plotting
-- `yfinance` for downloading stock price data
-- `requests` for SEC data retrieval
+Env used: SentimentAnalysis_LoughranMcDonald_env.yml 
 
 ## Results
 The project demonstrates that financial-specific word lists, such as the Loughran-McDonald list, provide a more accurate measure of negative sentiment in 10-K filings than general-purpose dictionaries like Harvard-IV. The analysis also shows a significant relationship between the negative tone of a 10-K and the corresponding 4-day stock price reaction.
