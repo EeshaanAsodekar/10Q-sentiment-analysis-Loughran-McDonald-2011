@@ -1,6 +1,6 @@
 # Sentiment Analysis of 10-Q Filings Using Custom Financial Dictionaries
 
-This project implements a textual analysis framework to evaluate the tone of corporate 10-Q filings, focusing on financial sentiment. The analysis leverages the Loughran-McDonald (2011) financial word list and compares it with the Harvard-IV dictionary, highlighting the differences in sentiment classification between financial and general-purpose word lists.
+This project implements a textual analysis framework to evaluate the tone of corporate 10-Q filings, focusing on sentiment. The analysis leverages the Loughran-McDonald (2011) financial word list and compares it with the Harvard-IV dictionary, highlighting the differences in sentiment classification between financial and general-purpose word lists.
 
 ## Objective
 The goal of this project is to assess how the tone of 10-Q filings correlates with excess stock returns around the filing date, using both financial and general negative word lists. This involves:
@@ -12,15 +12,13 @@ The goal of this project is to assess how the tone of 10-Q filings correlates wi
 The project processes S&P 500 constituent data and 10-Q filings downloaded from the SEC. It utilizes historical stock price data from Yahoo Finance to compute excess returns.
 
 ### Input Files:
-1. **sp500_CIKS.csv**: Contains CIK and Ticker mappings for S&P 500 companies.
-2. **NEGLoughranMcDonald_MasterDictionary_2018NEG.csv**: The Loughran-McDonald financial sentiment dictionary.
-3. **Harvard_Negative_Words_List.txt**: The Harvard-IV dictionary for sentiment analysis.
-4. **sp500_closing_prices.csv**: Historical stock prices for S&P 500 companies.
-5. **10-Q HTML files**: 10-Q filings downloaded from the SEC.
+1. **sp500_composition.csv**: S&P 500 constitutent firms and tickers
 
 ## Key Components
-1. **Word Count Analysis**: Parses 10-Q filings and counts occurrences of sentiment-related words from both the Loughran-McDonald and Harvard word lists.
-3. **Tone vs. Return Correlation**: Analyzes the correlation between sentiment scores and excess returns, grouped into quintiles based on negative sentiment scores.
+1. **Downloading & Extracting 10Q Filings**: Downloading the 10Q filings for all the S&P500 constituents
+2. **Downloading and Computing Excess Returns**: Using yfinance to download the closing prices of the S&P500 constituents
+3. **Negative Scoring/Weighting for each 10Q**: A negative weight is computed for each 10Q based on the count of negative words (dictionary dependent) 
+4. **Negative Weight (Sentiment) vs. 4-day Excess Return**: Analyze the relationship between sentiment scores and excess returns, grouped into quintiles based on negative sentiment scores.
 
 ## Usage
 1. Run `10Q_html_downloader.py` to download all the 10Qs of the S&P500 constitutents 
