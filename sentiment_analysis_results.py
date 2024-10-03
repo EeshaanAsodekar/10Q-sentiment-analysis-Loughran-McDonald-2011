@@ -303,3 +303,4 @@ plt.yticks([round(x, 4) for x in plt.yticks()[0]])
 
 # Display the plot
 plt.show()
+plt.savefig("LoughranMcDonald_vs_Harvard.png")
