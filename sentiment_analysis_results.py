@@ -301,6 +301,6 @@ plt.ylim(y_min, y_max)
 # Increase precision on y-axis tick labels
 plt.yticks([round(x, 4) for x in plt.yticks()[0]])
 
+plt.savefig("LoughranMcDonald_vs_Harvard.png")
 # Display the plot
 plt.show()
-plt.savefig("LoughranMcDonald_vs_Harvard.png")
