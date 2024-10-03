@@ -23,13 +23,15 @@ The project processes S&P 500 constituent data and 10-Q filings downloaded from 
 3. **Tone vs. Return Correlation**: Analyzes the correlation between sentiment scores and excess returns, grouped into quintiles based on negative sentiment scores.
 
 ## Usage
-1. Download the required S&P 500 data and word lists.
-2. Run the `textual_analysis.py` script to perform the word count analysis on 10-Q filings.
-3. Run the `excess_returns_analysis.py` script to calculate the 4-day excess returns for each company.
-4. Visualize the results using the provided plotting functions to compare sentiment analysis results from different word lists.
+1. Run `10Q_html_downloader.py` to download all the 10Qs of the S&P500 constitutents 
+2. Run `10Q_extractor.py` to extract the text from the downloaded 10Qs
+3. Run `Generic_Parser.py` to get word count and other intermediate computations; returns a `Parser.csv` file.
+4. Run `get_sp500_closing_data.py` to get S&P500 closing prices
+5. Run `get_sp500_cik.py` to get S&P500 CIK
+6. Run `sentiment_analysis_results.py` to compute the 10Q weights and visualize the trend of negative sentiment v/s 4 day cumulative returns
 
 ## Dependencies
-Env used: SentimentAnalysis_LoughranMcDonald_env.yml 
+Install the env: `SentimentAnalysis_LoughranMcDonald_env.yml` 
 
 ## Results
 The project demonstrates that financial-specific word lists, such as the Loughran-McDonald list, provide a more accurate measure of negative sentiment in 10-Q filings than general-purpose dictionaries like Harvard-IV. The analysis also shows a significant relationship between the negative tone of a 10-Q and the corresponding 4-day stock price reaction.
