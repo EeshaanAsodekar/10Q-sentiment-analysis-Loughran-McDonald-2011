@@ -20,123 +20,96 @@
 #  ----------------------------------------------------------
 #  pip install pandas
 # ==========================================================
-import os, glob, re, xml.etree.ElementTree as ET
-import pandas as pd
+import os, glob, xml.etree.ElementTree as ET, pandas as pd
 
-XML_DIR = "form4_xml_2024_2025"   # where the *.xml files live
+XML_DIR = "form4_xml_2024_2025"
 OUTFILE = "form4_transactions.parquet"
 
-# -------- field maps --------------------------------------
-FIELDS_NONDERIV = dict(
-    security_title         = "./securityTitle/value",
-    transaction_date       = "./transactionDate/value",
-    transaction_code       = "./transactionCoding/transactionCode",
-    transaction_shares     = "./transactionAmounts/transactionShares/value",
-    transaction_price      = "./transactionAmounts/transactionPricePerShare/value",
-    acquired_disposed      = "./transactionAmounts/transactionAcquiredDisposedCode/value",
-    shares_owned_following = "./postTransactionAmounts/sharesOwnedFollowingTransaction/value",
-    direct_or_indirect     = "./ownershipNature/directOrIndirectOwnership/value",
+# ----- field templates ------------------------------------
+FIELDS_TX = dict(   # common to TX rows
+    security_title="./securityTitle/value",
+    transaction_date="./transactionDate/value",
+    transaction_code="./transactionCoding/transactionCode",
+    transaction_shares="./transactionAmounts/transactionShares/value",
+    transaction_price="./transactionAmounts/transactionPricePerShare/value",
+    acquired_disposed="./transactionAmounts/transactionAcquiredDisposedCode/value",
+    shares_owned_following="./postTransactionAmounts/sharesOwnedFollowingTransaction/value",
+    direct_or_indirect="./ownershipNature/directOrIndirectOwnership/value",
+)
+FIELDS_HOLD = dict(  # holdings (no txn info)
+    security_title="./securityTitle/value",
+    shares_owned_following="./postTransactionAmounts/sharesOwnedFollowingTransaction/value",
+    direct_or_indirect="./ownershipNature/directOrIndirectOwnership/value",
+    nature_of_ownership="./ownershipNature/natureOfOwnership/value",
+)
+# extra for derivative rows
+UNDERLYING = dict(
+    underlying_title="./underlyingSecurity/underlyingSecurityTitle/value",
+    underlying_shares="./underlyingSecurity/underlyingSecurityShares/value",
 )
 
-FIELDS_DERIV = dict(
-    security_title         = "./securityTitle/value",
-    transaction_date       = "./transactionDate/value",
-    transaction_code       = "./transactionCoding/transactionCode",
-    transaction_shares     = "./transactionAmounts/transactionShares/value",
-    transaction_price      = "./transactionAmounts/transactionPricePerShare/value",
-    acquired_disposed      = "./transactionAmounts/transactionAcquiredDisposedCode/value",
-    shares_owned_following = "./postTransactionAmounts/sharesOwnedFollowingTransaction/value",
-    direct_or_indirect     = "./ownershipNature/directOrIndirectOwnership/value",
-    underlying_title       = "./underlyingSecurity/underlyingSecurityTitle/value",
-    underlying_shares      = "./underlyingSecurity/underlyingSecurityShares/value",
-)
-
-# -------- helpers ----------------------------------------
+# ----- helpers --------------------------------------------
 def text_at(elem, path):
     tgt = elem.find(path)
-    return (tgt.text or "").strip() if tgt is not None else None
+    return (tgt.text or "").strip() if tgt is not None and tgt.text else None
+def truthy(v): return str(v).lower().strip() in {"1","true","yes"}
+def owner_relation(o):
+    rel=o.find("./reportingOwnerRelationship"); parts=[]
+    if rel is None: return None
+    if truthy(text_at(rel,"isDirector")): parts.append("Director")
+    if truthy(text_at(rel,"isOfficer")):  parts.append("Officer")
+    if truthy(text_at(rel,"isTenPercentOwner")): parts.append("10% Owner")
+    if truthy(text_at(rel,"isOther")): parts.append("Other")
+    for tag in ("officerTitle","otherText"):
+        if (t:=text_at(rel,tag)): parts.append(t)
+    return ", ".join(parts) if parts else None
 
-def truthy(val):
-    """return True for 1, true, yes (case-insensitive)"""
-    return str(val).strip().lower() in {"1", "true", "yes"}
-
-def owner_relation(owner):
-    rel = owner.find("./reportingOwnerRelationship")
-    if rel is None:
-        return None
-
-    labels = []
-    if truthy(text_at(rel, "isDirector")):        labels.append("Director")
-    if truthy(text_at(rel, "isOfficer")):         labels.append("Officer")
-    if truthy(text_at(rel, "isTenPercentOwner")): labels.append("10% Owner")
-    if truthy(text_at(rel, "isOther")):           labels.append("Other")
-
-    off_title = text_at(rel, "officerTitle")
-    other_txt = text_at(rel, "otherText")
-    if off_title: labels.append(off_title)
-    if other_txt: labels.append(other_txt)
-
-    return ", ".join(labels) if labels else None
-
-def parse_one(xml_path):
-    rows = []
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    cik     = text_at(root, "./issuer/issuerCik")
-    period  = text_at(root, "./periodOfReport")
-
-    # guess accession from file name  e.g. CIK_YYYY-MM-DD_doc4.xml → middle part
-    base      = os.path.basename(xml_path)
-    parts     = base.split("_", 2)
-    accession = parts[2] if len(parts) > 2 else base
-
-    # could be multiple owners (rare but valid)
-    for owner in root.findall("./reportingOwner"):
-        ocik  = text_at(owner, "./reportingOwnerId/rptOwnerCik")
-        oname = text_at(owner, "./reportingOwnerId/rptOwnerName")
-        rel   = owner_relation(owner)
-
-        # ---------- Non‑Derivative (Table I) ----------
-        for tx in root.findall("./nonDerivativeTable/nonDerivativeTransaction"):
-            rec = {
-                "cik": cik,
-                "accession": accession,
-                "period_of_report": period,
-                "owner_cik": ocik,
-                "owner_name": oname,
-                "owner_relation": rel,
-                "table": "NonDerivative",
-            }
-            for col, xpath in FIELDS_NONDERIV.items():
-                rec[col] = text_at(tx, xpath)
+# ----- parser ---------------------------------------------
+def parse_file(path):
+    r=ET.parse(path).getroot()
+    base=os.path.basename(path)
+    accession=base.split("_",2)[-1]
+    meta_core=dict(
+        cik=text_at(r,"./issuer/issuerCik"),
+        period_of_report=text_at(r,"./periodOfReport"),
+        accession=accession,
+    )
+    rows=[]
+    for own in r.findall("./reportingOwner"):
+        meta=dict(**meta_core,
+            owner_cik=text_at(own,"./reportingOwnerId/rptOwnerCik"),
+            owner_name=text_at(own,"./reportingOwnerId/rptOwnerName"),
+            owner_relation=owner_relation(own),
+        )
+        # Table I transactions
+        for tx in r.findall("./nonDerivativeTable/nonDerivativeTransaction"):
+            rec={**meta,"table":"NonDerivative"}
+            for k,x in FIELDS_TX.items(): rec[k]=text_at(tx,x)
             rows.append(rec)
-
-        # ---------- Derivative (Table II) -------------
-        for tx in root.findall("./derivativeTable/derivativeTransaction"):
-            rec = {
-                "cik": cik,
-                "accession": accession,
-                "period_of_report": period,
-                "owner_cik": ocik,
-                "owner_name": oname,
-                "owner_relation": rel,
-                "table": "Derivative",
-            }
-            for col, xpath in FIELDS_DERIV.items():
-                rec[col] = text_at(tx, xpath)
+        # Table I holdings
+        for hd in r.findall("./nonDerivativeTable/nonDerivativeHolding"):
+            rec={**meta,"table":"NonDerivative"}
+            for k,x in FIELDS_HOLD.items(): rec[k]=text_at(hd,x)
+            rows.append(rec)
+        # Table II transactions
+        for tx in r.findall("./derivativeTable/derivativeTransaction"):
+            rec={**meta,"table":"Derivative"}
+            for k,x in {**FIELDS_TX,**UNDERLYING}.items():
+                rec[k]=text_at(tx,x)
+            rows.append(rec)
+        # Table II holdings
+        for hd in r.findall("./derivativeTable/derivativeHolding"):
+            rec={**meta,"table":"Derivative"}
+            for k,x in {**FIELDS_HOLD,**UNDERLYING}.items():
+                rec[k]=text_at(hd,x)
             rows.append(rec)
     return rows
 
-# -------- iterate every downloaded XML -------------------
-all_rows = []
-for xml_file in glob.glob(os.path.join(XML_DIR, "*.xml")):
-    try:
-        all_rows.extend(parse_one(xml_file))
-    except Exception as e:
-        print(f"parse error {xml_file}: {e}")
+# ----- run -------------------------------------------------
+rows=[]
+for fp in glob.glob(os.path.join(XML_DIR,"*.xml")):
+    try: rows.extend(parse_file(fp))
+    except Exception as e: print("error",fp,e)
 
-df = pd.DataFrame(all_rows)
-df.to_csv("test_form4.csv",index=False)
-df.to_parquet(OUTFILE, index=False)   # feather/CSV also fine
-print(f"{len(df)} transaction rows written to {OUTFILE}")
+pd.DataFrame(rows).to_csv("test_form4.csv",index=False)
+print(pd.DataFrame(rows).shape)
