@@ -56,16 +56,27 @@ def text_at(elem, path):
     tgt = elem.find(path)
     return (tgt.text or "").strip() if tgt is not None else None
 
+def truthy(val):
+    """return True for 1, true, yes (case-insensitive)"""
+    return str(val).strip().lower() in {"1", "true", "yes"}
+
 def owner_relation(owner):
     rel = owner.find("./reportingOwnerRelationship")
-    pieces = []
-    if text_at(rel, "isDirector") == "1":        pieces.append("Director")
-    if text_at(rel, "isOfficer") == "1":         pieces.append("Officer")
-    if text_at(rel, "isTenPercentOwner") == "1": pieces.append("10% Owner")
-    if text_at(rel, "isOther") == "1":           pieces.append("Other")
+    if rel is None:
+        return None
+
+    labels = []
+    if truthy(text_at(rel, "isDirector")):        labels.append("Director")
+    if truthy(text_at(rel, "isOfficer")):         labels.append("Officer")
+    if truthy(text_at(rel, "isTenPercentOwner")): labels.append("10% Owner")
+    if truthy(text_at(rel, "isOther")):           labels.append("Other")
+
     off_title = text_at(rel, "officerTitle")
-    if off_title: pieces.append(off_title)
-    return ", ".join(pieces)
+    other_txt = text_at(rel, "otherText")
+    if off_title: labels.append(off_title)
+    if other_txt: labels.append(other_txt)
+
+    return ", ".join(labels) if labels else None
 
 def parse_one(xml_path):
     rows = []
