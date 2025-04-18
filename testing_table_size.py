@@ -1,24 +1,22 @@
 # ----------------------------------------------------------
-#  Sanity‑check: count Table‑I & Table‑II rows in all XMLs
+#  Sanity‑check: count ALL child elements under each table
 # ----------------------------------------------------------
 import os, glob, xml.etree.ElementTree as ET
 
-XML_DIR = "form4_xml_2024_2025"          # change if needed
+XML_DIR = "form4_xml_2024_2025"
 
-t1_rows = 0      # Table I  (non‑derivative)
-t2_rows = 0      # Table II (derivative)
+t1_count = 0   # all elements under nonDerivativeTable
+t2_count = 0   # all elements under derivativeTable
 
 for fp in glob.glob(os.path.join(XML_DIR, "*.xml")):
     root = ET.parse(fp).getroot()
 
-    # Table I rows: transactions + holdings
-    t1_rows += len(root.findall("./nonDerivativeTable/nonDerivativeTransaction"))
-    t1_rows += len(root.findall("./nonDerivativeTable/nonDerivativeHolding"))
+    # count every direct child element of <nonDerivativeTable>
+    t1_count += len(root.findall("./nonDerivativeTable/*"))
 
-    # Table II rows: transactions + holdings
-    t2_rows += len(root.findall("./derivativeTable/derivativeTransaction"))
-    t2_rows += len(root.findall("./derivativeTable/derivativeHolding"))
+    # count every direct child element of <derivativeTable>
+    t2_count += len(root.findall("./derivativeTable/*"))
 
-print(f"Table I rows (non‑derivative): {t1_rows:,}")
-print(f"Table II rows (derivative):    {t2_rows:,}")
-print(f"Grand total:                   {t1_rows + t2_rows:,}")
+print(f"Total elements under Table I (non‑derivative): {t1_count:,}")
+print(f"Total elements under Table II (derivative):    {t2_count:,}")
+print(f"Grand total elements:                           {t1_count + t2_count:,}")
