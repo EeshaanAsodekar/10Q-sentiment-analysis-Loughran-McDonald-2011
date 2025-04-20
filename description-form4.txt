@@ -1,0 +1,53 @@
+**Insider Trades Tracker**  
+
+**Data Sourcing**  
+1. **Ticker → CIK Lookup**  
+   We pull the SEC’s master ticker→CIK list (company_tickers.json) to translate the stock symbols you enter into Central Index Keys (CIKs).  
+2. **Form 4 Filings Retrieval**  
+   For each CIK and your chosen year range, we query the SEC’s Submissions API (`CIK##########.json`) to list every Form 4. We then fetch the **raw XBRL/XML** for each Form 4 (not the HTML view), obeying SEC rate limits and retry rules.  
+
+**Processing Pipeline**  
+1. **XML Parsing**  
+   Each downloaded Form 4 XML is parsed with Python’s `xml.etree`. We extract the single `<reportingOwner>` block (CIK, name, role flags).  
+2. **Separate Tables**  
+   • **Transactions**: every `<nonDerivativeTransaction>` and `<derivativeTransaction>` becomes a row with date, code (A/D/M/G…), share count, price, acquire/dispose flag, post‑transaction holdings, and for derivatives the underlying security details.  
+   • **Holdings**: every `<nonDerivativeHolding>` and `<derivativeHolding>` becomes a row with snapshot of shares owned (direct vs indirect) plus a “nature of ownership” note (e.g. “By Trust”, “401(k) plan”).  
+3. **Normalization**  
+   Missing values (e.g. price footnoted only) stay blank. Boolean flags accept both “1” and “true”. All dates are YYYY‑MM‑DD.  
+
+**Final Tables**  
+- **`transactions_df`**  
+  | Column                   | Description                                                                            |
+  |--------------------------|----------------------------------------------------------------------------------------|
+  | cik                      | Issuer CIK                                                                              |
+  | accession                | Form 4 accession number                                                                  |
+  | period_of_report         | Report date (YYYY‑MM‑DD)                                                                 |
+  | owner_cik, owner_name    | Reporting person’s CIK & name                                                            |
+  | owner_relation           | “Director”, “Officer”, “10% Owner”, “Other” (+ any officerTitle/otherText)             |
+  | table                    | “NonDerivative” or “Derivative”                                                         |
+  | security_title           | Security or derivative title (e.g. “Common Stock”, “RSU”)                              |
+  | transaction_date         | Transaction date (YYYY‑MM‑DD)                                                            |
+  | transaction_code         | Transaction code (A=acquire, D=dispose, M=modify, G=gift, etc.)                         |
+  | transaction_shares       | Quantity acquired/disposed                                                               |
+  | transaction_price        | Price per share/unit (blank if footnoted)                                              |
+  | acquired_disposed        | “A” or “D” indicator                                                                    |
+  | shares_owned_following   | Total shares owned immediately after the transaction                                     |
+  | direct_or_indirect       | “D” or “I” (direct vs indirect ownership)                                               |
+  | underlying_title, underlying_shares | (Derivatives only) underlying security title & share count                   |
+
+- **`holdings_df`**  
+  | Column                   | Description                                                                            |
+  |--------------------------|----------------------------------------------------------------------------------------|
+  | cik, accession, period_of_report, owner_*, table | Same as above (but `table` still “NonDerivative” or “Derivative”)    |
+  | security_title           | Security or derivative title                                                            |
+  | shares_owned_following   | Shares owned (snapshot)                                                                 |
+  | direct_or_indirect       | “D” or “I”                                                                              |
+  | nature_of_ownership      | Indirect‑ownership note (“By Spouse”, “Custodian Account for Son”, etc.)                |
+
+**Usage**  
+- **Filter** by ticker, date range, transaction type, or owner role  
+- **Aggregate** buy/sell volumes, chart insider activity over time  
+- **Download** clean CSVs or Parquet files for your models  
+- **Drill Down** to the original Form 4 filings on SEC EDGAR for audit  
+
+With Insider Trades Tracker, you get transparent, up‑to‑date visibility into every senior executive and director move—streamlined for your fundamental equity analysis.
