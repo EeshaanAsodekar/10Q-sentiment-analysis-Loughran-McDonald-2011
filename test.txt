@@ -1,0 +1,9 @@
+“Identify three management statements in this call that could materially change our core valuation drivers (revenue growth, margin trajectory, capex, or capital returns). For each, quantify the potential swing in fair‑value if the statement proves accurate.”
+
+“Distill the competitive‑landscape signals in this call: flag any commentary implying shifts in pricing power, customer churn, channel mix, or new entrants. For each, state whether it strengthens or erodes the company’s moat and estimate the medium‑term gross‑margin or market‑share sensitivity.”
+
+“Surface every macro‑economic, regulatory, or geopolitical exposure mentioned—explicitly or implicitly. Rank them by potential 12‑month EPS volatility and note the contingency actions management committed to (or failed to address).”
+
+“From the Q&A session only, surface the five exchanges that revealed information absent from the prepared remarks. For each exchange, state why it is thesis‑critical and how it might alter our position sizing or risk budget.”
+
+“Build a concise bull‑vs‑bear mosaic from this transcript: three evidence‑backed points for each side, the key catalyst(s) that would validate them, and a quick note on probability or timing.”
